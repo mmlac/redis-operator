@@ -202,20 +202,23 @@ func generateRedisStatefulSet(rf *redisfailoverv1alpha2.RedisFailover, labels ma
 							Resources: resources,
 						},
 					},
-					Volumes: []corev1.Volume{
-						{
-							Name: "redis-config",
-							VolumeSource: corev1.VolumeSource{
-								ConfigMap: &corev1.ConfigMapVolumeSource{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: name,
+					Volumes: append(
+						[]corev1.Volume{
+							{
+								Name: "redis-config",
+								VolumeSource: corev1.VolumeSource{
+									ConfigMap: &corev1.ConfigMapVolumeSource{
+										LocalObjectReference: corev1.LocalObjectReference{
+											Name: name,
+										},
 									},
 								},
 							},
 						},
-					},
+						*getPersistentVolumes(&rf.Spec.RedisFailoverPersistence)...),
 				},
 			},
+			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{},
 		},
 	}
 
@@ -502,4 +505,15 @@ func createPodAntiAffinity(hard bool, labels map[string]string) *corev1.PodAntiA
 
 func getQuorum(rf *redisfailoverv1alpha2.RedisFailover) int32 {
 	return rf.Spec.Sentinel.Replicas/2 + 1
+}
+
+func getPersistentVolumeClaims(rf *redisfailoverv1alpha2.RedisFailoverPersistence) *[]corev1.PersistenVolumeClaim {
+	// check existence, etc?!
+	// How to signal an "error" in the deployed CRT request?
+	if rf.Enabled == true {
+		var pvc = rf.PersistentVolumeClaim
+		pvc.Metadata.Name = "redis-pvc"
+		return &[]corev1.PersistentVolumeClaim{pvc}
+	}
+	return &[]corev1.PersistentVolumeClaim{}
 }

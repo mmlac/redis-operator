@@ -31,6 +31,9 @@ type RedisFailoverSpec struct {
 	// NodeAffinity defines the rules for scheduling the Redis and Sentinel
 	// nodes
 	NodeAffinity *corev1.NodeAffinity `json:"nodeAffinity,omitempty"`
+
+	// Define Redis persistence settings and the volume to store the backup data on
+	RedisFailoverPersistence RedisFailoverPersistence `json:"storage,omitempty"`
 }
 
 // RedisSettings defines the specification of the redis cluster
@@ -87,4 +90,50 @@ type RedisFailoverList struct {
 	metav1.ListMeta `json:"metadata"`
 
 	Items []RedisFailover `json:"items"`
+}
+
+// Define the persistence for Redis
+type RedisFailoverPersistence struct {
+	// Enable persistence and mount a disk?
+	Enabled bool `json:"enabled"`
+
+	// A PVC to mount and store the RDB / AOF files on
+	// This will be mounted on _every_ data node as running a (fast) restarting master
+	// without persistence is dangerous
+	PersistentVolumeClaim corev1.PersistentVolumeClaim `json:"persistentVolumeClaim,omitempty"`
+
+	// VolumeMountDir  -  will be the mount point for the PVC _AND_ the `dir` setting in redis.conf
+	PersistenceDir string `json:"persistencedir,omitempty"`
+
+	// Set RDB (Snapshot) persistence
+	Rdb RedisFailoverRdbPersistence `json:"rdb,omitempty"`
+
+	// Set AOF (Append-only File) persistence
+	Aof RedisFailoverAofPersistence `json:"aof,omitempty"`
+}
+
+type RedisFailoverRdbPersistence struct {
+	Enabled                 bool                   `json:"enabled"`
+	RdbFilename             string                 `json:"rdbfilename,omitempty"`
+	Sizes                   []RedisFailoverRdbSize `json:"sizes,omitempty"`
+	StopWritesOnBgSaveError bool                   `json:"stopwritesonbgsaveerror,omitempty"`
+	RdbChecksum             bool                   `json:"rdbchecksum,omitempty"`
+}
+
+type RedisFailoverRdbSize struct {
+	Seconds int32 `json:"seconds"`
+	Keys    int32 `json:"keys"`
+}
+
+type RedisFailoverAofPersistence struct {
+	Enabled           bool                           `json:"enabled"`
+	AppendFilename    string                         `json:"appendfilename"`
+	AppendFsync       string                         `json:"appendfsync,omitempty"`
+	AofRewrite        RedisFailoverAofRewriteSetting `json:"aofrewrite,omitempty"`
+	AutoloadTruncated bool                           `json:"autoloadtruncated,omitempty"`
+}
+
+type RedisFailoverAofRewriteSetting struct {
+	Percentage int32 `json:"percentage"`
+	MinSize    int32 `json:"minsize"`
 }
